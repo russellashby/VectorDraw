@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vector Graphics Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Left panel - controls */
+  .panel-left {
+    width: 240px;
+    background: #16213e;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-right: 1px solid #0f3460;
+    overflow-y: auto;
+  }
+  .panel-left h1 {
+    font-size: 16px;
+    color: #e94560;
+    margin-bottom: 4px;
+  }
+  .panel-left h2 {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 8px;
+  }
+  label {
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  input[type="number"] {
+    width: 64px;
+    background: #1a1a2e;
+    border: 1px solid #0f3460;
+    color: #e0e0e0;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  select {
+    width: 100%;
+    background: #1a1a2e;
+    border: 1px solid #0f3460;
+    color: #e0e0e0;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  button {
+    background: #0f3460;
+    color: #e0e0e0;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s;
+  }
+  button:hover { background: #e94560; }
+  button.active { background: #e94560; }
+  .btn-row { display: flex; gap: 6px; }
+  .btn-row button { flex: 1; }
+  .btn-danger { background: #5c1a1a; }
+  .btn-danger:hover { background: #e94560; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .toggle {
+    width: 36px; height: 20px;
+    background: #0f3460;
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle.on { background: #e94560; }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    background: #e0e0e0;
+    border-radius: 50%;
+    top: 2px; left: 2px;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 18px; }
+
+  /* Canvas area */
+  .canvas-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  canvas {
+    cursor: crosshair;
+  }
+  .coords-display {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    font-size: 12px;
+    color: #888;
+    font-family: monospace;
+  }
+
+  /* Right panel - output */
+  .panel-right {
+    width: 300px;
+    background: #16213e;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border-left: 1px solid #0f3460;
+  }
+  .panel-right h2 {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .output-box {
+    flex: 1;
+    background: #1a1a2e;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    color: #7ec8e3;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .vertex-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .vertex-item {
+    font-size: 12px;
+    font-family: monospace;
+    padding: 3px 6px;
+    background: #1a1a2e;
+    border-radius: 3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .vertex-item .remove-btn {
+    background: none;
+    color: #e94560;
+    padding: 0 4px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .vertex-item .remove-btn:hover { color: #fff; background: none; }
+
+  /* Rotation preview */
+  .rotation-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  input[type="range"] {
+    flex: 1;
+    accent-color: #e94560;
+  }
+  .rotation-value {
+    font-size: 12px;
+    font-family: monospace;
+    width: 40px;
+    text-align: right;
+  }
+</style>
+</head>
+<body>
+
+<div class="panel-left">
+  <h1>Vector Editor</h1>
+
+  <h2>Grid</h2>
+  <label>Size <input type="number" id="gridSize" value="32" min="4" max="128" step="2"></label>
+  <label>Scale <input type="number" id="scaleFactor" value="1" min="0.1" max="10" step="0.1"></label>
+
+  <h2>Mirror</h2>
+  <div class="toggle-row">
+    Horizontal (X)
+    <div class="toggle" id="mirrorX"></div>
+  </div>
+  <div class="toggle-row">
+    Vertical (Y)
+    <div class="toggle" id="mirrorY"></div>
+  </div>
+
+  <h2>Rotation</h2>
+  <div class="rotation-section">
+    <input type="range" id="rotation" min="0" max="360" value="0">
+    <span class="rotation-value" id="rotationValue">0</span>
+  </div>
+  <button id="applyRotationBtn">Apply Rotation</button>
+
+  <h2>Actions</h2>
+  <button id="closeBtn">Close Polygon</button>
+  <div class="btn-row">
+    <button id="undoBtn">Undo</button>
+    <button id="clearBtn" class="btn-danger">Clear</button>
+  </div>
+  <button id="copyBtn">Copy Lua</button>
+
+  <h2>Vertices</h2>
+  <div class="vertex-list" id="vertexList"></div>
+</div>
+
+<div class="canvas-area">
+  <canvas id="canvas"></canvas>
+  <div class="coords-display" id="coordsDisplay">x: 0, y: 0</div>
+</div>
+
+<div class="panel-right">
+  <h2>Lua Output</h2>
+  <div class="output-box" id="luaOutput">-- Click on the grid to add vertices</div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// State
+let gridSize = 32;
+let scaleFactor = 1;
+let vertices = [];
+let closed = false;
+let mirrorX = false;
+let mirrorY = false;
+let rotation = 0;
+let hoverGrid = null;
+
+// Sizing
+const PADDING = 40;
+let cellSize, originX, originY, canvasSize;
+
+function resize() {
+  const area = canvas.parentElement;
+  const dim = Math.min(area.clientWidth, area.clientHeight) - PADDING * 2;
+  canvasSize = dim + PADDING * 2;
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  cellSize = dim / gridSize;
+  originX = canvasSize / 2;
+  originY = canvasSize / 2;
+  draw();
+}
+
+// Convert grid coords to canvas pixels
+function gridToCanvas(gx, gy) {
+  return [originX + gx * cellSize, originY + gy * cellSize];
+}
+
+// Convert canvas pixels to snapped grid coords
+function canvasToGrid(cx, cy) {
+  const gx = Math.round((cx - originX) / cellSize);
+  const gy = Math.round((cy - originY) / cellSize);
+  const half = gridSize / 2;
+  return [
+    Math.max(-half, Math.min(half, gx)),
+    Math.max(-half, Math.min(half, gy))
+  ];
+}
+
+// Rotate a point around origin
+function rotatePoint(x, y, angleDeg) {
+  const rad = angleDeg * Math.PI / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return [x * cos - y * sin, x * sin + y * cos];
+}
+
+// Get all vertices including mirrored
+function getEffectiveVertices() {
+  if (vertices.length === 0) return [];
+
+  // With mirroring, we construct the full shape
+  // For X mirror: reflect across Y axis (negate x)
+  // For Y mirror: reflect across X axis (negate y)
+  if (!mirrorX && !mirrorY) return [...vertices];
+
+  let result = [...vertices];
+
+  if (mirrorX && !mirrorY) {
+    // Add reversed mirror across Y axis
+    const mirrored = vertices.slice().reverse().map(([x, y]) => [-x, y]);
+    // Skip first if it matches last of original (on axis)
+    if (mirrored.length > 0 && mirrored[0][0] === result[result.length - 1][0] && mirrored[0][1] === result[result.length - 1][1]) {
+      mirrored.shift();
+    }
+    if (mirrored.length > 0 && result[0][0] === mirrored[mirrored.length - 1][0] && result[0][1] === mirrored[mirrored.length - 1][1]) {
+      mirrored.pop();
+    }
+    result = result.concat(mirrored);
+  } else if (!mirrorX && mirrorY) {
+    const mirrored = vertices.slice().reverse().map(([x, y]) => [x, -y]);
+    if (mirrored.length > 0 && mirrored[0][0] === result[result.length - 1][0] && mirrored[0][1] === result[result.length - 1][1]) {
+      mirrored.shift();
+    }
+    if (mirrored.length > 0 && result[0][0] === mirrored[mirrored.length - 1][0] && result[0][1] === mirrored[mirrored.length - 1][1]) {
+      mirrored.pop();
+    }
+    result = result.concat(mirrored);
+  } else {
+    // Both mirrors: 4-way symmetry
+    // Quadrant 1 (original), then mirror X, then mirror XY, then mirror Y
+    const mx = vertices.slice().reverse().map(([x, y]) => [-x, y]);
+    const mxy = vertices.map(([x, y]) => [-x, -y]);
+    const my = vertices.slice().reverse().map(([x, y]) => [x, -y]);
+
+    // Remove duplicates at joins
+    function dedupJoin(base, addition) {
+      let add = [...addition];
+      if (add.length > 0 && add[0][0] === base[base.length - 1][0] && add[0][1] === base[base.length - 1][1]) {
+        add.shift();
+      }
+      return base.concat(add);
+    }
+    result = dedupJoin(result, mx);
+    result = dedupJoin(result, mxy);
+    result = dedupJoin(result, my);
+    // Remove last if it matches first
+    if (result.length > 1 && result[0][0] === result[result.length - 1][0] && result[0][1] === result[result.length - 1][1]) {
+      result.pop();
+    }
+  }
+
+  return result;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+  const half = gridSize / 2;
+
+  // Grid lines
+  ctx.strokeStyle = '#1f2a45';
+  ctx.lineWidth = 1;
+  for (let i = -half; i <= half; i++) {
+    const [x1, y1] = gridToCanvas(i, -half);
+    const [x2, y2] = gridToCanvas(i, half);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    const [x3, y3] = gridToCanvas(-half, i);
+    const [x4, y4] = gridToCanvas(half, i);
+    ctx.beginPath();
+    ctx.moveTo(x3, y3);
+    ctx.lineTo(x4, y4);
+    ctx.stroke();
+  }
+
+  // Axes
+  ctx.strokeStyle = '#2a4a6e';
+  ctx.lineWidth = 2;
+  // X axis
+  const [ax1, ay1] = gridToCanvas(-half, 0);
+  const [ax2, ay2] = gridToCanvas(half, 0);
+  ctx.beginPath();
+  ctx.moveTo(ax1, ay1);
+  ctx.lineTo(ax2, ay2);
+  ctx.stroke();
+  // Y axis
+  const [ax3, ay3] = gridToCanvas(0, -half);
+  const [ax4, ay4] = gridToCanvas(0, half);
+  ctx.beginPath();
+  ctx.moveTo(ax3, ay3);
+  ctx.lineTo(ax4, ay4);
+  ctx.stroke();
+
+  // Origin dot
+  ctx.fillStyle = '#e94560';
+  ctx.beginPath();
+  ctx.arc(originX, originY, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mirror guides
+  if (mirrorX) {
+    ctx.strokeStyle = 'rgba(233, 69, 96, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(originX, 0);
+    ctx.lineTo(originX, canvasSize);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (mirrorY) {
+    ctx.strokeStyle = 'rgba(233, 69, 96, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, originY);
+    ctx.lineTo(canvasSize, originY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const effective = getEffectiveVertices();
+
+  // Draw rotated shape (preview)
+  if (rotation !== 0 && effective.length > 1) {
+    ctx.strokeStyle = 'rgba(126, 200, 227, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    const [rx0, ry0] = rotatePoint(effective[0][0], effective[0][1], rotation);
+    const [cx0, cy0] = gridToCanvas(rx0, ry0);
+    ctx.moveTo(cx0, cy0);
+    for (let i = 1; i < effective.length; i++) {
+      const [rx, ry] = rotatePoint(effective[i][0], effective[i][1], rotation);
+      const [cx, cy] = gridToCanvas(rx, ry);
+      ctx.lineTo(cx, cy);
+    }
+    if (closed) ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw polygon lines
+  if (effective.length > 1) {
+    ctx.strokeStyle = '#7ec8e3';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const [sx, sy] = gridToCanvas(effective[0][0], effective[0][1]);
+    ctx.moveTo(sx, sy);
+    for (let i = 1; i < effective.length; i++) {
+      const [px, py] = gridToCanvas(effective[i][0], effective[i][1]);
+      ctx.lineTo(px, py);
+    }
+    if (closed) ctx.closePath();
+    ctx.stroke();
+  }
+
+  // Draw vertices (only user-placed ones as solid, mirrored as hollow)
+  for (let i = 0; i < effective.length; i++) {
+    const [px, py] = gridToCanvas(effective[i][0], effective[i][1]);
+    const isOriginal = i < vertices.length && !mirrorX && !mirrorY;
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    if (i < vertices.length || (!mirrorX && !mirrorY)) {
+      ctx.fillStyle = '#e94560';
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = '#e94560';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  // User-placed vertex numbers
+  for (let i = 0; i < vertices.length; i++) {
+    const [px, py] = gridToCanvas(vertices[i][0], vertices[i][1]);
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(i + 1, px, py - 8);
+  }
+
+  // Hover indicator
+  if (hoverGrid && !closed) {
+    const [hx, hy] = gridToCanvas(hoverGrid[0], hoverGrid[1]);
+    ctx.strokeStyle = 'rgba(233, 69, 96, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Preview line from last vertex
+    if (vertices.length > 0) {
+      const last = vertices[vertices.length - 1];
+      const [lx, ly] = gridToCanvas(last[0], last[1]);
+      ctx.strokeStyle = 'rgba(126, 200, 227, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(lx, ly);
+      ctx.lineTo(hx, hy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+function updateLuaOutput() {
+  const effective = getEffectiveVertices();
+  const out = document.getElementById('luaOutput');
+  if (effective.length === 0) {
+    out.textContent = '-- Click on the grid to add vertices';
+    return;
+  }
+
+  const scaled = effective.map(([x, y]) => [
+    Math.round(x * scaleFactor * 100) / 100,
+    Math.round(y * scaleFactor * 100) / 100
+  ]);
+
+  let lua = 'vertices = {\n';
+  for (const [x, y] of scaled) {
+    lua += `  ${x}, ${y},\n`;
+  }
+  lua += '}';
+  out.textContent = lua;
+}
+
+function updateVertexList() {
+  const list = document.getElementById('vertexList');
+  list.innerHTML = '';
+  vertices.forEach(([x, y], i) => {
+    const item = document.createElement('div');
+    item.className = 'vertex-item';
+    const scaled = [
+      Math.round(x * scaleFactor * 100) / 100,
+      Math.round(y * scaleFactor * 100) / 100
+    ];
+    item.innerHTML = `<span>${i + 1}: (${scaled[0]}, ${scaled[1]})</span>`;
+    const btn = document.createElement('button');
+    btn.className = 'remove-btn';
+    btn.textContent = 'x';
+    btn.onclick = () => {
+      vertices.splice(i, 1);
+      if (vertices.length < 3) closed = false;
+      refresh();
+    };
+    item.appendChild(btn);
+    list.appendChild(item);
+  });
+}
+
+function refresh() {
+  draw();
+  updateLuaOutput();
+  updateVertexList();
+}
+
+// Canvas events
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  hoverGrid = canvasToGrid(x, y);
+  const scaled = [
+    Math.round(hoverGrid[0] * scaleFactor * 100) / 100,
+    Math.round(hoverGrid[1] * scaleFactor * 100) / 100
+  ];
+  document.getElementById('coordsDisplay').textContent = `x: ${scaled[0]}, y: ${scaled[1]}`;
+  draw();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverGrid = null;
+  draw();
+});
+
+canvas.addEventListener('click', (e) => {
+  if (closed) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const [gx, gy] = canvasToGrid(x, y);
+  vertices.push([gx, gy]);
+  refresh();
+});
+
+// Controls
+document.getElementById('gridSize').addEventListener('change', (e) => {
+  gridSize = parseInt(e.target.value) || 32;
+  resize();
+  refresh();
+});
+
+document.getElementById('scaleFactor').addEventListener('change', (e) => {
+  scaleFactor = parseFloat(e.target.value) || 1;
+  refresh();
+});
+
+document.getElementById('mirrorX').addEventListener('click', (e) => {
+  mirrorX = !mirrorX;
+  e.currentTarget.classList.toggle('on', mirrorX);
+  refresh();
+});
+
+document.getElementById('mirrorY').addEventListener('click', (e) => {
+  mirrorY = !mirrorY;
+  e.currentTarget.classList.toggle('on', mirrorY);
+  refresh();
+});
+
+document.getElementById('rotation').addEventListener('input', (e) => {
+  rotation = parseInt(e.target.value);
+  document.getElementById('rotationValue').textContent = rotation + '\u00B0';
+  draw();
+});
+
+document.getElementById('applyRotationBtn').addEventListener('click', () => {
+  if (rotation === 0 || vertices.length === 0) return;
+  // Rotate all user-placed vertices and round to nearest grid point
+  const half = gridSize / 2;
+  vertices = vertices.map(([x, y]) => {
+    const [rx, ry] = rotatePoint(x, y, rotation);
+    return [
+      Math.max(-half, Math.min(half, Math.round(rx))),
+      Math.max(-half, Math.min(half, Math.round(ry)))
+    ];
+  });
+  // Reset rotation slider
+  rotation = 0;
+  document.getElementById('rotation').value = 0;
+  document.getElementById('rotationValue').textContent = '0\u00B0';
+  refresh();
+});
+
+document.getElementById('closeBtn').addEventListener('click', () => {
+  if (vertices.length >= 3) {
+    closed = !closed;
+    document.getElementById('closeBtn').textContent = closed ? 'Open Polygon' : 'Close Polygon';
+    document.getElementById('closeBtn').classList.toggle('active', closed);
+    refresh();
+  }
+});
+
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if (vertices.length > 0) {
+    vertices.pop();
+    if (vertices.length < 3) closed = false;
+    document.getElementById('closeBtn').textContent = 'Close Polygon';
+    document.getElementById('closeBtn').classList.remove('active');
+    refresh();
+  }
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  vertices = [];
+  closed = false;
+  document.getElementById('closeBtn').textContent = 'Close Polygon';
+  document.getElementById('closeBtn').classList.remove('active');
+  refresh();
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const text = document.getElementById('luaOutput').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Lua', 1500);
+  });
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    document.getElementById('undoBtn').click();
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('clearBtn').click();
+  }
+  if (e.key === 'c' && !e.ctrlKey && !e.metaKey) {
+    document.getElementById('closeBtn').click();
+  }
+});
+
+// Init
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>
