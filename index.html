@@ -151,8 +151,12 @@
     font-size: 13px;
     color: #7ec8e3;
     overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
+    white-space: pre;
+    resize: none;
+    outline: none;
+  }
+  .output-box.parse-error {
+    border-color: #e94560;
   }
   .vertex-list {
     flex: 1;
@@ -243,7 +247,7 @@
 
 <div class="panel-right">
   <h2>Lua Output</h2>
-  <div class="output-box" id="luaOutput">-- Click on the grid to add vertices</div>
+  <textarea class="output-box" id="luaOutput" spellcheck="false">-- Click on the grid to add vertices</textarea>
 </div>
 
 <script>
@@ -524,11 +528,15 @@ function draw() {
   }
 }
 
+let luaEditingByUser = false;
+
 function updateLuaOutput() {
+  if (luaEditingByUser) return;
   const effective = getEffectiveVertices();
   const out = document.getElementById('luaOutput');
   if (effective.length === 0) {
-    out.textContent = '-- Click on the grid to add vertices';
+    out.value = '-- Click on the grid to add vertices';
+    out.classList.remove('parse-error');
     return;
   }
 
@@ -542,7 +550,28 @@ function updateLuaOutput() {
     lua += `  ${x}, ${y},\n`;
   }
   lua += '}';
-  out.textContent = lua;
+  out.value = lua;
+  out.classList.remove('parse-error');
+}
+
+function parseLuaTable(text) {
+  // Extract numbers from the Lua table
+  // Handles: vertices = { 1, 2, 3, 4 } or just { 1, 2, 3, 4 } or bare numbers
+  const stripped = text.replace(/--[^\n]*/g, ''); // remove comments
+  const match = stripped.match(/\{([^}]*)\}/);
+  const numStr = match ? match[1] : stripped;
+  const numbers = [];
+  const numRegex = /-?\d+\.?\d*/g;
+  let m;
+  while ((m = numRegex.exec(numStr)) !== null) {
+    numbers.push(parseFloat(m[0]));
+  }
+  if (numbers.length < 2 || numbers.length % 2 !== 0) return null;
+  const pts = [];
+  for (let i = 0; i < numbers.length; i += 2) {
+    pts.push([numbers[i], numbers[i + 1]]);
+  }
+  return pts;
 }
 
 function updateVertexList() {
@@ -738,7 +767,7 @@ document.getElementById('clearBtn').addEventListener('click', () => {
 });
 
 document.getElementById('copyBtn').addEventListener('click', () => {
-  const text = document.getElementById('luaOutput').textContent;
+  const text = document.getElementById('luaOutput').value;
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyBtn');
     btn.textContent = 'Copied!';
@@ -746,8 +775,43 @@ document.getElementById('copyBtn').addEventListener('click', () => {
   });
 });
 
+// Lua textarea editing
+const luaOutput = document.getElementById('luaOutput');
+luaOutput.addEventListener('focus', () => {
+  luaEditingByUser = true;
+});
+luaOutput.addEventListener('blur', () => {
+  luaEditingByUser = false;
+  updateLuaOutput();
+});
+luaOutput.addEventListener('input', () => {
+  const parsed = parseLuaTable(luaOutput.value);
+  if (parsed) {
+    luaOutput.classList.remove('parse-error');
+    // Convert scaled values back to grid coords
+    const sf = scaleFactor || 1;
+    vertices = parsed.map(([x, y]) => [
+      Math.round(x / sf),
+      Math.round(y / sf)
+    ]);
+    mirrorX = false;
+    mirrorY = false;
+    document.getElementById('mirrorX').classList.remove('on');
+    document.getElementById('mirrorY').classList.remove('on');
+    closed = parsed.length >= 3;
+    document.getElementById('closeBtn').textContent = closed ? 'Open Polygon' : 'Close Polygon';
+    document.getElementById('closeBtn').classList.toggle('active', closed);
+    draw();
+    updateVertexList();
+  } else {
+    luaOutput.classList.add('parse-error');
+  }
+});
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+  // Don't trigger shortcuts while editing Lua
+  if (document.activeElement === luaOutput) return;
   if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
     document.getElementById('undoBtn').click();
