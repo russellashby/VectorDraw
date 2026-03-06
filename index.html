@@ -259,6 +259,9 @@ let mirrorX = false;
 let mirrorY = false;
 let rotation = 0;
 let hoverGrid = null;
+let draggingIndex = -1;
+let didDrag = false;
+
 
 // Sizing
 const PADDING = 40;
@@ -493,27 +496,30 @@ function draw() {
     ctx.fillText(i + 1, px, py - 8);
   }
 
-  // Hover indicator
-  if (hoverGrid && !closed) {
+  // Hover indicator (only when not near an existing vertex and not dragging)
+  if (hoverGrid && !closed && draggingIndex < 0) {
     const [hx, hy] = gridToCanvas(hoverGrid[0], hoverGrid[1]);
-    ctx.strokeStyle = 'rgba(233, 69, 96, 0.6)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(hx, hy, 6, 0, Math.PI * 2);
-    ctx.stroke();
-
-    // Preview line from last vertex
-    if (vertices.length > 0) {
-      const last = vertices[vertices.length - 1];
-      const [lx, ly] = gridToCanvas(last[0], last[1]);
-      ctx.strokeStyle = 'rgba(126, 200, 227, 0.4)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
+    const nearVertex = vertices.some(([vx, vy]) => vx === hoverGrid[0] && vy === hoverGrid[1]);
+    if (!nearVertex) {
+      ctx.strokeStyle = 'rgba(233, 69, 96, 0.6)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(lx, ly);
-      ctx.lineTo(hx, hy);
+      ctx.arc(hx, hy, 6, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.setLineDash([]);
+
+      // Preview line from last vertex
+      if (vertices.length > 0) {
+        const last = vertices[vertices.length - 1];
+        const [lx, ly] = gridToCanvas(last[0], last[1]);
+        ctx.strokeStyle = 'rgba(126, 200, 227, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(lx, ly);
+        ctx.lineTo(hx, hy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
   }
 }
@@ -569,7 +575,36 @@ function refresh() {
   updateVertexList();
 }
 
+// Find nearest vertex index within a pixel threshold
+function findNearestVertex(canvasX, canvasY, threshold) {
+  let best = -1;
+  let bestDist = threshold * threshold;
+  for (let i = 0; i < vertices.length; i++) {
+    const [px, py] = gridToCanvas(vertices[i][0], vertices[i][1]);
+    const dx = canvasX - px;
+    const dy = canvasY - py;
+    const dist = dx * dx + dy * dy;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = i;
+    }
+  }
+  return best;
+}
+
 // Canvas events
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const hit = findNearestVertex(x, y, 10);
+  if (hit >= 0) {
+    draggingIndex = hit;
+    didDrag = false;
+    canvas.style.cursor = 'grabbing';
+  }
+});
+
 canvas.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -580,22 +615,51 @@ canvas.addEventListener('mousemove', (e) => {
     Math.round(hoverGrid[1] * scaleFactor * 100) / 100
   ];
   document.getElementById('coordsDisplay').textContent = `x: ${scaled[0]}, y: ${scaled[1]}`;
-  draw();
+
+  if (draggingIndex >= 0) {
+    const [gx, gy] = canvasToGrid(x, y);
+    vertices[draggingIndex] = [gx, gy];
+    didDrag = true;
+    refresh();
+  } else {
+    // Update cursor based on hover proximity
+    const hit = findNearestVertex(x, y, 10);
+    canvas.style.cursor = hit >= 0 ? 'grab' : 'crosshair';
+    draw();
+  }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (draggingIndex >= 0) {
+    draggingIndex = -1;
+    canvas.style.cursor = 'crosshair';
+    if (didDrag) {
+      refresh();
+      return;
+    }
+  }
+  // Place new vertex if not dragging and not closed
+  if (!didDrag && !closed) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const hit = findNearestVertex(x, y, 10);
+    if (hit < 0) {
+      const [gx, gy] = canvasToGrid(x, y);
+      vertices.push([gx, gy]);
+      refresh();
+    }
+  }
+  didDrag = false;
 });
 
 canvas.addEventListener('mouseleave', () => {
   hoverGrid = null;
+  if (draggingIndex >= 0) {
+    draggingIndex = -1;
+    canvas.style.cursor = 'crosshair';
+  }
   draw();
-});
-
-canvas.addEventListener('click', (e) => {
-  if (closed) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  const [gx, gy] = canvasToGrid(x, y);
-  vertices.push([gx, gy]);
-  refresh();
 });
 
 // Controls
