@@ -250,6 +250,7 @@
   <textarea class="output-box" id="luaOutput" spellcheck="false">-- Click on the grid to add vertices</textarea>
 </div>
 
+<script src="vector.js"></script>
 <script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -283,86 +284,15 @@ function resize() {
   draw();
 }
 
-// Convert grid coords to canvas pixels
-function gridToCanvas(gx, gy) {
-  return [originX + gx * cellSize, originY + gy * cellSize];
+// Wrappers that bind shared functions to current app state
+function _gridToCanvas(gx, gy) {
+  return gridToCanvas(gx, gy, originX, originY, cellSize);
 }
-
-// Convert canvas pixels to snapped grid coords
-function canvasToGrid(cx, cy) {
-  const gx = Math.round((cx - originX) / cellSize);
-  const gy = Math.round((cy - originY) / cellSize);
-  const half = gridSize / 2;
-  return [
-    Math.max(-half, Math.min(half, gx)),
-    Math.max(-half, Math.min(half, gy))
-  ];
+function _canvasToGrid(cx, cy) {
+  return canvasToGrid(cx, cy, originX, originY, cellSize, gridSize);
 }
-
-// Rotate a point around origin
-function rotatePoint(x, y, angleDeg) {
-  const rad = angleDeg * Math.PI / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  return [x * cos - y * sin, x * sin + y * cos];
-}
-
-// Get all vertices including mirrored
-function getEffectiveVertices() {
-  if (vertices.length === 0) return [];
-
-  // With mirroring, we construct the full shape
-  // For X mirror: reflect across Y axis (negate x)
-  // For Y mirror: reflect across X axis (negate y)
-  if (!mirrorX && !mirrorY) return [...vertices];
-
-  let result = [...vertices];
-
-  if (mirrorX && !mirrorY) {
-    // Add reversed mirror across Y axis
-    const mirrored = vertices.slice().reverse().map(([x, y]) => [-x, y]);
-    // Skip first if it matches last of original (on axis)
-    if (mirrored.length > 0 && mirrored[0][0] === result[result.length - 1][0] && mirrored[0][1] === result[result.length - 1][1]) {
-      mirrored.shift();
-    }
-    if (mirrored.length > 0 && result[0][0] === mirrored[mirrored.length - 1][0] && result[0][1] === mirrored[mirrored.length - 1][1]) {
-      mirrored.pop();
-    }
-    result = result.concat(mirrored);
-  } else if (!mirrorX && mirrorY) {
-    const mirrored = vertices.slice().reverse().map(([x, y]) => [x, -y]);
-    if (mirrored.length > 0 && mirrored[0][0] === result[result.length - 1][0] && mirrored[0][1] === result[result.length - 1][1]) {
-      mirrored.shift();
-    }
-    if (mirrored.length > 0 && result[0][0] === mirrored[mirrored.length - 1][0] && result[0][1] === mirrored[mirrored.length - 1][1]) {
-      mirrored.pop();
-    }
-    result = result.concat(mirrored);
-  } else {
-    // Both mirrors: 4-way symmetry
-    // Quadrant 1 (original), then mirror X, then mirror XY, then mirror Y
-    const mx = vertices.slice().reverse().map(([x, y]) => [-x, y]);
-    const mxy = vertices.map(([x, y]) => [-x, -y]);
-    const my = vertices.slice().reverse().map(([x, y]) => [x, -y]);
-
-    // Remove duplicates at joins
-    function dedupJoin(base, addition) {
-      let add = [...addition];
-      if (add.length > 0 && add[0][0] === base[base.length - 1][0] && add[0][1] === base[base.length - 1][1]) {
-        add.shift();
-      }
-      return base.concat(add);
-    }
-    result = dedupJoin(result, mx);
-    result = dedupJoin(result, mxy);
-    result = dedupJoin(result, my);
-    // Remove last if it matches first
-    if (result.length > 1 && result[0][0] === result[result.length - 1][0] && result[0][1] === result[result.length - 1][1]) {
-      result.pop();
-    }
-  }
-
-  return result;
+function _getEffectiveVertices() {
+  return getEffectiveVertices(vertices, mirrorX, mirrorY);
 }
 
 function draw() {
@@ -378,15 +308,15 @@ function draw() {
   ctx.strokeStyle = '#1f2a45';
   ctx.lineWidth = 1;
   for (let i = -half; i <= half; i++) {
-    const [x1, y1] = gridToCanvas(i, -half);
-    const [x2, y2] = gridToCanvas(i, half);
+    const [x1, y1] = _gridToCanvas(i, -half);
+    const [x2, y2] = _gridToCanvas(i, half);
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
 
-    const [x3, y3] = gridToCanvas(-half, i);
-    const [x4, y4] = gridToCanvas(half, i);
+    const [x3, y3] = _gridToCanvas(-half, i);
+    const [x4, y4] = _gridToCanvas(half, i);
     ctx.beginPath();
     ctx.moveTo(x3, y3);
     ctx.lineTo(x4, y4);
@@ -397,15 +327,15 @@ function draw() {
   ctx.strokeStyle = '#2a4a6e';
   ctx.lineWidth = 2;
   // X axis
-  const [ax1, ay1] = gridToCanvas(-half, 0);
-  const [ax2, ay2] = gridToCanvas(half, 0);
+  const [ax1, ay1] = _gridToCanvas(-half, 0);
+  const [ax2, ay2] = _gridToCanvas(half, 0);
   ctx.beginPath();
   ctx.moveTo(ax1, ay1);
   ctx.lineTo(ax2, ay2);
   ctx.stroke();
   // Y axis
-  const [ax3, ay3] = gridToCanvas(0, -half);
-  const [ax4, ay4] = gridToCanvas(0, half);
+  const [ax3, ay3] = _gridToCanvas(0, -half);
+  const [ax4, ay4] = _gridToCanvas(0, half);
   ctx.beginPath();
   ctx.moveTo(ax3, ay3);
   ctx.lineTo(ax4, ay4);
@@ -439,7 +369,7 @@ function draw() {
     ctx.setLineDash([]);
   }
 
-  const effective = getEffectiveVertices();
+  const effective = _getEffectiveVertices();
 
   // Draw rotated shape (preview)
   if (rotation !== 0 && effective.length > 1) {
@@ -448,11 +378,11 @@ function draw() {
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
     const [rx0, ry0] = rotatePoint(effective[0][0], effective[0][1], rotation);
-    const [cx0, cy0] = gridToCanvas(rx0, ry0);
+    const [cx0, cy0] = _gridToCanvas(rx0, ry0);
     ctx.moveTo(cx0, cy0);
     for (let i = 1; i < effective.length; i++) {
       const [rx, ry] = rotatePoint(effective[i][0], effective[i][1], rotation);
-      const [cx, cy] = gridToCanvas(rx, ry);
+      const [cx, cy] = _gridToCanvas(rx, ry);
       ctx.lineTo(cx, cy);
     }
     if (closed) ctx.closePath();
@@ -465,10 +395,10 @@ function draw() {
     ctx.strokeStyle = '#7ec8e3';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    const [sx, sy] = gridToCanvas(effective[0][0], effective[0][1]);
+    const [sx, sy] = _gridToCanvas(effective[0][0], effective[0][1]);
     ctx.moveTo(sx, sy);
     for (let i = 1; i < effective.length; i++) {
-      const [px, py] = gridToCanvas(effective[i][0], effective[i][1]);
+      const [px, py] = _gridToCanvas(effective[i][0], effective[i][1]);
       ctx.lineTo(px, py);
     }
     if (closed) ctx.closePath();
@@ -477,7 +407,7 @@ function draw() {
 
   // Draw vertices (only user-placed ones as solid, mirrored as hollow)
   for (let i = 0; i < effective.length; i++) {
-    const [px, py] = gridToCanvas(effective[i][0], effective[i][1]);
+    const [px, py] = _gridToCanvas(effective[i][0], effective[i][1]);
     const isOriginal = i < vertices.length && !mirrorX && !mirrorY;
     ctx.beginPath();
     ctx.arc(px, py, 4, 0, Math.PI * 2);
@@ -493,7 +423,7 @@ function draw() {
 
   // User-placed vertex numbers
   for (let i = 0; i < vertices.length; i++) {
-    const [px, py] = gridToCanvas(vertices[i][0], vertices[i][1]);
+    const [px, py] = _gridToCanvas(vertices[i][0], vertices[i][1]);
     ctx.fillStyle = '#fff';
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
@@ -502,7 +432,7 @@ function draw() {
 
   // Hover indicator (only when not near an existing vertex and not dragging)
   if (hoverGrid && !closed && draggingIndex < 0) {
-    const [hx, hy] = gridToCanvas(hoverGrid[0], hoverGrid[1]);
+    const [hx, hy] = _gridToCanvas(hoverGrid[0], hoverGrid[1]);
     const nearVertex = vertices.some(([vx, vy]) => vx === hoverGrid[0] && vy === hoverGrid[1]);
     if (!nearVertex) {
       ctx.strokeStyle = 'rgba(233, 69, 96, 0.6)';
@@ -514,7 +444,7 @@ function draw() {
       // Preview line from last vertex
       if (vertices.length > 0) {
         const last = vertices[vertices.length - 1];
-        const [lx, ly] = gridToCanvas(last[0], last[1]);
+        const [lx, ly] = _gridToCanvas(last[0], last[1]);
         ctx.strokeStyle = 'rgba(126, 200, 227, 0.4)';
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
@@ -532,46 +462,15 @@ let luaEditingByUser = false;
 
 function updateLuaOutput() {
   if (luaEditingByUser) return;
-  const effective = getEffectiveVertices();
+  const effective = _getEffectiveVertices();
   const out = document.getElementById('luaOutput');
   if (effective.length === 0) {
     out.value = '-- Click on the grid to add vertices';
     out.classList.remove('parse-error');
     return;
   }
-
-  const scaled = effective.map(([x, y]) => [
-    Math.round(x * scaleFactor * 100) / 100,
-    Math.round(y * scaleFactor * 100) / 100
-  ]);
-
-  let lua = 'vertices = {\n';
-  for (const [x, y] of scaled) {
-    lua += `  ${x}, ${y},\n`;
-  }
-  lua += '}';
-  out.value = lua;
+  out.value = generateLuaOutput(effective, scaleFactor);
   out.classList.remove('parse-error');
-}
-
-function parseLuaTable(text) {
-  // Extract numbers from the Lua table
-  // Handles: vertices = { 1, 2, 3, 4 } or just { 1, 2, 3, 4 } or bare numbers
-  const stripped = text.replace(/--[^\n]*/g, ''); // remove comments
-  const match = stripped.match(/\{([^}]*)\}/);
-  const numStr = match ? match[1] : stripped;
-  const numbers = [];
-  const numRegex = /-?\d+\.?\d*/g;
-  let m;
-  while ((m = numRegex.exec(numStr)) !== null) {
-    numbers.push(parseFloat(m[0]));
-  }
-  if (numbers.length < 2 || numbers.length % 2 !== 0) return null;
-  const pts = [];
-  for (let i = 0; i < numbers.length; i += 2) {
-    pts.push([numbers[i], numbers[i + 1]]);
-  }
-  return pts;
 }
 
 function updateVertexList() {
@@ -609,7 +508,7 @@ function findNearestVertex(canvasX, canvasY, threshold) {
   let best = -1;
   let bestDist = threshold * threshold;
   for (let i = 0; i < vertices.length; i++) {
-    const [px, py] = gridToCanvas(vertices[i][0], vertices[i][1]);
+    const [px, py] = _gridToCanvas(vertices[i][0], vertices[i][1]);
     const dx = canvasX - px;
     const dy = canvasY - py;
     const dist = dx * dx + dy * dy;
@@ -638,7 +537,7 @@ canvas.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
-  hoverGrid = canvasToGrid(x, y);
+  hoverGrid = _canvasToGrid(x, y);
   const scaled = [
     Math.round(hoverGrid[0] * scaleFactor * 100) / 100,
     Math.round(hoverGrid[1] * scaleFactor * 100) / 100
@@ -646,7 +545,7 @@ canvas.addEventListener('mousemove', (e) => {
   document.getElementById('coordsDisplay').textContent = `x: ${scaled[0]}, y: ${scaled[1]}`;
 
   if (draggingIndex >= 0) {
-    const [gx, gy] = canvasToGrid(x, y);
+    const [gx, gy] = _canvasToGrid(x, y);
     vertices[draggingIndex] = [gx, gy];
     didDrag = true;
     refresh();
@@ -674,7 +573,7 @@ canvas.addEventListener('mouseup', (e) => {
     const y = e.clientY - rect.top;
     const hit = findNearestVertex(x, y, 10);
     if (hit < 0) {
-      const [gx, gy] = canvasToGrid(x, y);
+      const [gx, gy] = _canvasToGrid(x, y);
       vertices.push([gx, gy]);
       refresh();
     }
