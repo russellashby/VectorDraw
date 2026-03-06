@@ -721,6 +721,14 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'c' && !e.ctrlKey && !e.metaKey) {
     document.getElementById('closeBtn').click();
   }
+  // Arrow keys to move closed polygon
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && vertices.length > 0) {
+    e.preventDefault();
+    const dx = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
+    const dy = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+    vertices = translateVertices(vertices, dx, dy, gridSize);
+    refresh();
+  }
 });
 
 // Init

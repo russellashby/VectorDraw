@@ -1,4 +1,4 @@
-const { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput } = require('./vector.js');
+const { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices } = require('./vector.js');
 
 let passed = 0;
 let failed = 0;
@@ -225,6 +225,36 @@ suite('generateLuaOutput -> parseLuaTable roundtrip', () => {
     assert(parsed[i][0] === original[i][0] && parsed[i][1] === original[i][1],
       `roundtrip vertex ${i}`);
   }
+});
+
+// ── translateVertices ──
+
+suite('translateVertices — basic move', () => {
+  const verts = [[0, 0], [2, 3]];
+  const moved = translateVertices(verts, 1, -1, 32);
+  assert(moved[0][0] === 1 && moved[0][1] === -1, 'first vertex moved');
+  assert(moved[1][0] === 3 && moved[1][1] === 2, 'second vertex moved');
+});
+
+suite('translateVertices — clamping to grid bounds', () => {
+  const verts = [[15, 15]];
+  const moved = translateVertices(verts, 5, 5, 32);
+  assert(moved[0][0] === 16 && moved[0][1] === 16, 'clamped to grid half');
+
+  const moved2 = translateVertices([[-15, -15]], -5, -5, 32);
+  assert(moved2[0][0] === -16 && moved2[0][1] === -16, 'clamped to negative bound');
+});
+
+suite('translateVertices — zero movement', () => {
+  const verts = [[3, 4]];
+  const moved = translateVertices(verts, 0, 0, 32);
+  assert(moved[0][0] === 3 && moved[0][1] === 4, 'unchanged');
+});
+
+suite('translateVertices — does not mutate original', () => {
+  const verts = [[1, 2]];
+  translateVertices(verts, 5, 5, 32);
+  assert(verts[0][0] === 1 && verts[0][1] === 2, 'original unchanged');
 });
 
 // ── Summary ──

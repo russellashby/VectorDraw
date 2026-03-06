@@ -102,6 +102,14 @@ function generateLuaOutput(vertices, scaleFactor) {
   return lua;
 }
 
+function translateVertices(vertices, dx, dy, gridSize) {
+  const half = gridSize / 2;
+  return vertices.map(([x, y]) => [
+    Math.max(-half, Math.min(half, x + dx)),
+    Math.max(-half, Math.min(half, y + dy))
+  ]);
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput };
+  module.exports = { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices };
 }
