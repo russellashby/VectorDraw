@@ -23,6 +23,18 @@ All tests must pass before considering work complete. Run tests after every chan
 - `index.html` uses wrapper functions (`_gridToCanvas`, `_canvasToGrid`, `_getEffectiveVertices`) that bind app state to shared pure functions
 - Coordinate system: (0,0) at grid center, snap-to-grid only
 
+## Use Cases
+
+- Alistair Cockburn fully-dressed use cases live in `use-cases/` (UC-01 through UC-13)
+- Every feature request or bug fix must include a review of affected use cases — update existing ones or create new ones as needed
+- New use cases follow the naming convention `UC-NN-short-description.md`
+- Use cases are the source of truth for expected behavior; code and tests must stay consistent with them
+
+## Version Control
+
+- After every change (code, tests, use cases, or documentation), prompt the user: "Would you like to commit this change to version control?"
+- Do not commit automatically — always ask first
+
 ## Key Functions (vector.js)
 
 - `gridToCanvas(gx, gy, originX, originY, cellSize)` — grid coords to canvas pixels
@@ -31,6 +43,8 @@ All tests must pass before considering work complete. Run tests after every chan
 - `getEffectiveVertices(vertices, mirrorX, mirrorY)` — apply mirror modes, returns new arrays (no mutation)
 - `parseLuaTable(text)` — parse Lua flat array to vertex pairs, returns null on invalid input
 - `generateLuaOutput(vertices, scaleFactor)` — generate Lua flat array string
+- `translateVertices(vertices, dx, dy, gridSize)` — shift all vertices by delta, clamped to grid bounds
+- `clampRotation(value)` — parse and clamp rotation input to integer 0–360
 
 ## Conventions
 
