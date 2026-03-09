@@ -110,6 +110,12 @@ function translateVertices(vertices, dx, dy, gridSize) {
   ]);
 }
 
+function clampRotation(value) {
+  const n = parseInt(value);
+  if (isNaN(n)) return 0;
+  return Math.max(0, Math.min(360, n));
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices };
+  module.exports = { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices, clampRotation };
 }

@@ -194,11 +194,8 @@
     flex: 1;
     accent-color: #e94560;
   }
-  .rotation-value {
-    font-size: 12px;
-    font-family: monospace;
-    width: 40px;
-    text-align: right;
+  .rotation-section input[type="number"] {
+    width: 52px;
   }
 </style>
 </head>
@@ -209,7 +206,7 @@
 
   <h2>Grid</h2>
   <label>Size <input type="number" id="gridSize" value="32" min="4" max="128" step="2"></label>
-  <label>Scale <input type="number" id="scaleFactor" value="1" min="0.1" max="10" step="0.1"></label>
+  <label>Scale <input type="number" id="scaleFactor" value="1" min="1" max="10" step="1"></label>
 
   <h2>Mirror</h2>
   <div class="toggle-row">
@@ -224,7 +221,7 @@
   <h2>Rotation</h2>
   <div class="rotation-section">
     <input type="range" id="rotation" min="0" max="360" value="0">
-    <span class="rotation-value" id="rotationValue">0</span>
+    <input type="number" id="rotationInput" min="0" max="360" value="0">
   </div>
   <button id="applyRotationBtn">Apply Rotation</button>
 
@@ -598,7 +595,7 @@ document.getElementById('gridSize').addEventListener('change', (e) => {
 });
 
 document.getElementById('scaleFactor').addEventListener('change', (e) => {
-  scaleFactor = parseFloat(e.target.value) || 1;
+  scaleFactor = parseInt(e.target.value) || 1;
   refresh();
 });
 
@@ -615,8 +612,14 @@ document.getElementById('mirrorY').addEventListener('click', (e) => {
 });
 
 document.getElementById('rotation').addEventListener('input', (e) => {
-  rotation = parseInt(e.target.value);
-  document.getElementById('rotationValue').textContent = rotation + '\u00B0';
+  rotation = clampRotation(e.target.value);
+  document.getElementById('rotationInput').value = rotation;
+  draw();
+});
+
+document.getElementById('rotationInput').addEventListener('input', (e) => {
+  rotation = clampRotation(e.target.value);
+  document.getElementById('rotation').value = rotation;
   draw();
 });
 
@@ -634,7 +637,7 @@ document.getElementById('applyRotationBtn').addEventListener('click', () => {
   // Reset rotation slider
   rotation = 0;
   document.getElementById('rotation').value = 0;
-  document.getElementById('rotationValue').textContent = '0\u00B0';
+  document.getElementById('rotationInput').value = 0;
   refresh();
 });
 

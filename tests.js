@@ -1,4 +1,4 @@
-const { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices } = require('./vector.js');
+const { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices, clampRotation } = require('./vector.js');
 
 let passed = 0;
 let failed = 0;
@@ -206,8 +206,8 @@ suite('generateLuaOutput', () => {
 });
 
 suite('generateLuaOutput — scale factor', () => {
-  const lua = generateLuaOutput([[2, 4]], 0.5);
-  assert(lua.includes('1, 2,'), 'scale factor applied');
+  const lua = generateLuaOutput([[2, 4]], 3);
+  assert(lua.includes('6, 12,'), 'integer scale factor applied');
 });
 
 suite('generateLuaOutput — empty', () => {
@@ -255,6 +255,32 @@ suite('translateVertices — does not mutate original', () => {
   const verts = [[1, 2]];
   translateVertices(verts, 5, 5, 32);
   assert(verts[0][0] === 1 && verts[0][1] === 2, 'original unchanged');
+});
+
+// ── clampRotation ──
+
+suite('clampRotation — valid integers', () => {
+  assert(clampRotation(0) === 0, 'zero');
+  assert(clampRotation(180) === 180, 'mid value');
+  assert(clampRotation(360) === 360, 'max value');
+  assert(clampRotation('45') === 45, 'string input parsed');
+});
+
+suite('clampRotation — clamping', () => {
+  assert(clampRotation(-10) === 0, 'negative clamped to 0');
+  assert(clampRotation(500) === 360, 'over 360 clamped to 360');
+});
+
+suite('clampRotation — invalid input', () => {
+  assert(clampRotation('') === 0, 'empty string returns 0');
+  assert(clampRotation('abc') === 0, 'non-numeric returns 0');
+  assert(clampRotation(undefined) === 0, 'undefined returns 0');
+  assert(clampRotation(null) === 0, 'null returns 0');
+});
+
+suite('clampRotation — truncates decimals', () => {
+  assert(clampRotation(45.7) === 45, 'truncates to integer');
+  assert(clampRotation('90.9') === 90, 'string decimal truncated');
 });
 
 // ── Summary ──
