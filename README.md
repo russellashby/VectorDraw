@@ -15,6 +15,9 @@ A browser-based tool for creating vector polygon graphics for games like Asteroi
 - **Scale factor** — multiply output coordinates by an integer scale (1–10)
 - **Copy to clipboard** — one-click copy of the Lua table
 
+
+![Vector Graphics Editor screenshot](screenshot.png)
+
 ## Getting Started
 
 No build tools, no frameworks, no dependencies. Just open the file in a browser:
