@@ -233,6 +233,13 @@
   </div>
   <button id="copyBtn">Copy Lua</button>
 
+  <h2>Project</h2>
+  <div class="btn-row">
+    <button id="exportJsonBtn">Export JSON</button>
+    <button id="importJsonBtn">Import JSON</button>
+  </div>
+  <input type="file" id="importJsonInput" accept="application/json,.json" style="display:none">
+
   <h2>Vertices</h2>
   <div class="vertex-list" id="vertexList"></div>
 </div>
@@ -666,6 +673,71 @@ document.getElementById('clearBtn').addEventListener('click', () => {
   document.getElementById('closeBtn').textContent = 'Close Polygon';
   document.getElementById('closeBtn').classList.remove('active');
   refresh();
+});
+
+document.getElementById('exportJsonBtn').addEventListener('click', () => {
+  const json = generateProjectJson({
+    gridSize, scaleFactor, closed, mirrorX, mirrorY, vertices
+  });
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'vector-project.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  const btn = document.getElementById('exportJsonBtn');
+  const orig = btn.textContent;
+  btn.textContent = 'Exported!';
+  setTimeout(() => btn.textContent = orig, 1500);
+});
+
+document.getElementById('importJsonBtn').addEventListener('click', () => {
+  document.getElementById('importJsonInput').click();
+});
+
+document.getElementById('importJsonInput').addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const parsed = parseProjectJson(reader.result);
+    const btn = document.getElementById('importJsonBtn');
+    if (!parsed) {
+      const orig = btn.textContent;
+      btn.textContent = 'Invalid file';
+      setTimeout(() => btn.textContent = orig, 1500);
+      return;
+    }
+    if (parsed.gridSize) {
+      gridSize = parsed.gridSize;
+      document.getElementById('gridSize').value = gridSize;
+    }
+    if (parsed.scaleFactor) {
+      scaleFactor = parsed.scaleFactor;
+      document.getElementById('scaleFactor').value = scaleFactor;
+    }
+    vertices = parsed.vertices;
+    mirrorX = parsed.mirrorX;
+    mirrorY = parsed.mirrorY;
+    closed = parsed.closed && vertices.length >= 3;
+    document.getElementById('mirrorX').classList.toggle('on', mirrorX);
+    document.getElementById('mirrorY').classList.toggle('on', mirrorY);
+    document.getElementById('closeBtn').textContent = closed ? 'Open Polygon' : 'Close Polygon';
+    document.getElementById('closeBtn').classList.toggle('active', closed);
+    rotation = 0;
+    document.getElementById('rotation').value = 0;
+    document.getElementById('rotationInput').value = 0;
+    resize();
+    refresh();
+    const orig = btn.textContent;
+    btn.textContent = 'Imported!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 });
 
 document.getElementById('copyBtn').addEventListener('click', () => {

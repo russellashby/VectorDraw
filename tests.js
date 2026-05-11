@@ -1,4 +1,4 @@
-const { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices, clampRotation } = require('./vector.js');
+const { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices, clampRotation, generateProjectJson, parseProjectJson } = require('./vector.js');
 
 let passed = 0;
 let failed = 0;
@@ -281,6 +281,85 @@ suite('clampRotation — invalid input', () => {
 suite('clampRotation — truncates decimals', () => {
   assert(clampRotation(45.7) === 45, 'truncates to integer');
   assert(clampRotation('90.9') === 90, 'string decimal truncated');
+});
+
+// ── generateProjectJson / parseProjectJson ──
+
+suite('generateProjectJson — full state', () => {
+  const json = generateProjectJson({
+    gridSize: 32,
+    scaleFactor: 2,
+    closed: true,
+    mirrorX: true,
+    mirrorY: false,
+    vertices: [[0, -4], [3, 2]]
+  });
+  const obj = JSON.parse(json);
+  assert(obj.version === 1, 'has version');
+  assert(obj.gridSize === 32, 'gridSize preserved');
+  assert(obj.scaleFactor === 2, 'scaleFactor preserved');
+  assert(obj.closed === true, 'closed preserved');
+  assert(obj.mirrorX === true && obj.mirrorY === false, 'mirrors preserved');
+  assert(obj.vertices.length === 2 && obj.vertices[0][0] === 0 && obj.vertices[0][1] === -4, 'vertices preserved');
+});
+
+suite('parseProjectJson — valid', () => {
+  const text = JSON.stringify({
+    version: 1,
+    gridSize: 16,
+    scaleFactor: 3,
+    closed: true,
+    mirrorX: false,
+    mirrorY: true,
+    vertices: [[1, 2], [-3, 4]]
+  });
+  const r = parseProjectJson(text);
+  assert(r !== null, 'returns object');
+  assert(r.gridSize === 16, 'gridSize parsed');
+  assert(r.scaleFactor === 3, 'scaleFactor parsed');
+  assert(r.closed === true, 'closed parsed');
+  assert(r.mirrorX === false && r.mirrorY === true, 'mirrors parsed');
+  assert(r.vertices.length === 2 && r.vertices[1][0] === -3 && r.vertices[1][1] === 4, 'vertices parsed');
+});
+
+suite('parseProjectJson — invalid inputs', () => {
+  assert(parseProjectJson('') === null, 'empty string');
+  assert(parseProjectJson('not json') === null, 'malformed json');
+  assert(parseProjectJson('{}') === null, 'missing vertices');
+  assert(parseProjectJson('{"vertices":"nope"}') === null, 'vertices not array');
+  assert(parseProjectJson('{"vertices":[[1]]}') === null, 'pair too short');
+  assert(parseProjectJson('{"vertices":[["a","b"]]}') === null, 'non-numeric values');
+});
+
+suite('parseProjectJson — missing optional fields default safely', () => {
+  const r = parseProjectJson('{"vertices":[[0,0]]}');
+  assert(r !== null && r.vertices.length === 1, 'parses minimal');
+  assert(r.gridSize === null, 'gridSize null when missing');
+  assert(r.scaleFactor === null, 'scaleFactor null when missing');
+  assert(r.closed === false, 'closed defaults false');
+  assert(r.mirrorX === false && r.mirrorY === false, 'mirrors default false');
+});
+
+suite('generateProjectJson -> parseProjectJson roundtrip', () => {
+  const state = {
+    gridSize: 32,
+    scaleFactor: 1,
+    closed: true,
+    mirrorX: true,
+    mirrorY: true,
+    vertices: [[0, -4], [3, 2], [-3, 2]]
+  };
+  const json = generateProjectJson(state);
+  const r = parseProjectJson(json);
+  assert(r.gridSize === state.gridSize, 'gridSize roundtrip');
+  assert(r.scaleFactor === state.scaleFactor, 'scaleFactor roundtrip');
+  assert(r.closed === state.closed, 'closed roundtrip');
+  assert(r.mirrorX === state.mirrorX && r.mirrorY === state.mirrorY, 'mirrors roundtrip');
+  assert(r.vertices.length === state.vertices.length, 'vertex count roundtrip');
+  for (let i = 0; i < state.vertices.length; i++) {
+    assert(r.vertices[i][0] === state.vertices[i][0] && r.vertices[i][1] === state.vertices[i][1],
+      `vertex ${i} roundtrip`);
+  }
 });
 
 // ── Summary ──
