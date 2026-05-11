@@ -102,6 +102,45 @@ function generateLuaOutput(vertices, scaleFactor) {
   return lua;
 }
 
+function generateProjectJson(state) {
+  const data = {
+    version: 1,
+    gridSize: state.gridSize,
+    scaleFactor: state.scaleFactor,
+    closed: !!state.closed,
+    mirrorX: !!state.mirrorX,
+    mirrorY: !!state.mirrorY,
+    vertices: state.vertices.map(([x, y]) => [x, y])
+  };
+  return JSON.stringify(data, null, 2);
+}
+
+function parseProjectJson(text) {
+  let obj;
+  try {
+    obj = JSON.parse(text);
+  } catch (e) {
+    return null;
+  }
+  if (!obj || !Array.isArray(obj.vertices)) return null;
+  const pts = [];
+  for (const p of obj.vertices) {
+    if (!Array.isArray(p) || p.length < 2) return null;
+    const x = Number(p[0]);
+    const y = Number(p[1]);
+    if (!isFinite(x) || !isFinite(y)) return null;
+    pts.push([Math.round(x), Math.round(y)]);
+  }
+  return {
+    vertices: pts,
+    gridSize: Number.isFinite(obj.gridSize) ? obj.gridSize : null,
+    scaleFactor: Number.isFinite(obj.scaleFactor) ? obj.scaleFactor : null,
+    closed: !!obj.closed,
+    mirrorX: !!obj.mirrorX,
+    mirrorY: !!obj.mirrorY
+  };
+}
+
 function translateVertices(vertices, dx, dy, gridSize) {
   const half = gridSize / 2;
   return vertices.map(([x, y]) => [
@@ -117,5 +156,5 @@ function clampRotation(value) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices, clampRotation };
+  module.exports = { gridToCanvas, canvasToGrid, rotatePoint, getEffectiveVertices, parseLuaTable, generateLuaOutput, translateVertices, clampRotation, generateProjectJson, parseProjectJson };
 }

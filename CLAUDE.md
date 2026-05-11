@@ -45,6 +45,8 @@ All tests must pass before considering work complete. Run tests after every chan
 - `generateLuaOutput(vertices, scaleFactor)` — generate Lua flat array string
 - `translateVertices(vertices, dx, dy, gridSize)` — shift all vertices by delta, clamped to grid bounds
 - `clampRotation(value)` — parse and clamp rotation input to integer 0–360
+- `generateProjectJson(state)` — serialize full editor state (vertices, closed, mirrors, gridSize, scaleFactor) to JSON
+- `parseProjectJson(text)` — parse a project JSON string, returns null on invalid input
 
 ## Conventions
 

@@ -14,6 +14,7 @@ A browser-based tool for creating vector polygon graphics for games like Asteroi
 - **Editable Lua output** — edit the Lua code directly and see changes reflected on the canvas
 - **Scale factor** — multiply output coordinates by an integer scale (1–10)
 - **Copy to clipboard** — one-click copy of the Lua table
+- **Save/load projects** — export the full editor state to a `.json` file and import it later to resume work
 
 
 ![Vector Graphics Editor screenshot](screenshot.png)
@@ -71,7 +72,7 @@ CLAUDE.md      — AI assistant project instructions
 
 ## Use Cases
 
-The `use-cases/` directory contains 13 Alistair Cockburn fully-dressed use cases that document every feature's expected behavior. These are maintained alongside the code — any new feature or bug fix includes a corresponding use case review or update.
+The `use-cases/` directory contains 14 Alistair Cockburn fully-dressed use cases that document every feature's expected behavior. These are maintained alongside the code — any new feature or bug fix includes a corresponding use case review or update.
 
 ## Built With
 
