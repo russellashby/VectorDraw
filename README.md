@@ -2,6 +2,8 @@
 
 A browser-based tool for creating vector polygon graphics for games like Asteroids. Plot vertices on a snap-to-grid canvas and export as Lua flat arrays — ready to drop into LOVE2D or any Lua-based game engine.
 
+**[Launch Live Tool →](https://russellashby.github.io/VectorDraw/)**
+
 ## Features
 
 - **Click-to-place vertices** on a configurable grid with snap-to-grid precision
